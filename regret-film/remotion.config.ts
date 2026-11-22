@@ -1,4 +1,5 @@
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { Config } from "@remotion/cli/config";
 
@@ -19,4 +20,5 @@ Config.setOverwriteOutput(true);
 // 33 x 1080p clips: without a cap the compositor's frame cache grew to 12 GB
 // and was OOM-killed mid-render.
 Config.setOffthreadVideoCacheSizeInBytes(1536 * 1024 * 1024);
-Config.setConcurrency(6);
+// Remotion rejects a concurrency above the machine's CPU count
+Config.setConcurrency(Math.max(1, Math.min(6, os.cpus().length)));
