@@ -1,0 +1,154 @@
+{
+ "fps": 30,
+ "durationSec": 144.822857,
+ "durationInFrames": 4345,
+ "bpm": 107.998,
+ "beatPeriodSec": 0.55557,
+ "barPeriodSec": 2.22226,
+ "firstBeatSec": 0.8522,
+ "pickupBarSec": -0.259,
+ "downbeats": [
+  1.927,
+  4.156,
+  6.374,
+  8.615,
+  10.82,
+  13.05,
+  15.279,
+  17.461,
+  19.714,
+  21.943,
+  24.16,
+  26.389,
+  28.619,
+  30.824,
+  33.065,
+  35.26,
+  37.489,
+  39.718,
+  41.947,
+  44.164,
+  46.37,
+  48.599,
+  50.828,
+  53.046,
+  55.24,
+  57.493,
+  59.722,
+  61.962,
+  64.168,
+  66.397,
+  68.603,
+  70.809,
+  73.038,
+  75.267,
+  77.497,
+  79.714,
+  81.932,
+  84.149,
+  86.378,
+  88.607,
+  90.813,
+  93.042,
+  95.271,
+  97.512,
+  99.706,
+  101.936,
+  104.165,
+  106.394,
+  108.6,
+  110.817,
+  113.035,
+  115.287,
+  117.481,
+  119.676,
+  121.94,
+  124.145,
+  126.375,
+  128.604,
+  130.821,
+  133.05,
+  135.233,
+  137.509,
+  139.714,
+  141.966,
+  144.188
+ ],
+ "pauses": [
+  61.78,
+  71.76,
+  97.33,
+  105.67,
+  123.5,
+  132.89
+ ],
+ "fadeOutStartSec": 139.74,
+ "sections": [
+  {
+   "name": "intro",
+   "fromBar": null,
+   "toBar": 2,
+   "mood": "sparse pads, sub swells, no percussion (0-6.4 s)"
+  },
+  {
+   "name": "groove-in",
+   "fromBar": 2,
+   "toBar": 4,
+   "mood": "hats enter 6.4 s, beat arrives 8.6 s"
+  },
+  {
+   "name": "A",
+   "fromBar": 4,
+   "toBar": 26,
+   "mood": "main groove, 808 swell every 2 bars, loudest bar at 22.0 s"
+  },
+  {
+   "name": "drop",
+   "fromBar": 26,
+   "toBar": 27,
+   "mood": "energy dips, pause at 61.78 s"
+  },
+  {
+   "name": "bridge",
+   "fromBar": 27,
+   "toBar": 30,
+   "mood": "bass gone, single swell at 66.4 s"
+  },
+  {
+   "name": "breakdown",
+   "fromBar": 30,
+   "toBar": 32,
+   "mood": "quietest part of the body (-25 dB), 71.76 s low point"
+  },
+  {
+   "name": "B",
+   "fromBar": 32,
+   "toBar": 43,
+   "mood": "quiet melodic section, one bass swell at 86.4 s"
+  },
+  {
+   "name": "build",
+   "fromBar": 43,
+   "toBar": 47,
+   "mood": "risers, high band rises, pause at 105.67 s"
+  },
+  {
+   "name": "climax",
+   "fromBar": 47,
+   "toBar": 55,
+   "mood": "densest highs, sustained energy (~-16.5 dB), short dip 123.5 s"
+  },
+  {
+   "name": "climax2",
+   "fromBar": 55,
+   "toBar": 62,
+   "mood": "last full phrase, still strong"
+  },
+  {
+   "name": "outro",
+   "fromBar": 62,
+   "toBar": null,
+   "mood": "fade from 139.7 s to silence at 144.8 s"
+  }
+ ]
+}
