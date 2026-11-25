@@ -3,8 +3,9 @@
 // Also checks that every segment boundary and punch lands within half a frame of a downbeat.
 import { build } from "esbuild";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 
-const root = path.resolve(path.dirname(new URL(import.meta.url).pathname), "..");
+const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const out = await build({
   entryPoints: [path.join(root, "src/config/timeline.ts")],
   bundle: true,

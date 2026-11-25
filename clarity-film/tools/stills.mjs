@@ -5,8 +5,9 @@ import { bundle } from "@remotion/bundler";
 import { renderStill, selectComposition } from "@remotion/renderer";
 import fs from "node:fs";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 
-const root = path.resolve(path.dirname(new URL(import.meta.url).pathname), "..");
+const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const music = JSON.parse(fs.readFileSync(path.join(root, "src/data/music.json"), "utf8"));
 const args = process.argv.slice(2);
 const portrait = args.includes("--portrait");

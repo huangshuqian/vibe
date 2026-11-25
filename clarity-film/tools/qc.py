@@ -16,10 +16,15 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 VIDEO = sys.argv[1] if len(sys.argv) > 1 else os.path.join(ROOT, "out", "clarity-film.mp4")
 MUSIC = os.path.join(ROOT, "public", "music.mp3")
 M = json.load(open(os.path.join(ROOT, "src", "data", "music.json")))
-BIN = os.path.join(ROOT, "node_modules", "@remotion", "compositor-linux-x64-gnu")
-FFMPEG = os.environ.get("FFMPEG", os.path.join(BIN, "ffmpeg"))
-FFPROBE = os.environ.get("FFPROBE", os.path.join(BIN, "ffprobe"))
-ENV = {**os.environ, "LD_LIBRARY_PATH": BIN}
+import glob  # noqa: E402
+
+# Remotion installs one platform package: compositor-linux-x64-gnu, compositor-darwin-arm64, compositor-win32-x64-msvc, ...
+_bins = sorted(glob.glob(os.path.join(ROOT, "node_modules", "@remotion", "compositor-*")))
+BIN = _bins[0] if _bins else ""
+EXE = ".exe" if os.name == "nt" else ""
+FFMPEG = os.environ.get("FFMPEG", os.path.join(BIN, "ffmpeg" + EXE))
+FFPROBE = os.environ.get("FFPROBE", os.path.join(BIN, "ffprobe" + EXE))
+ENV = {**os.environ, "LD_LIBRARY_PATH": BIN, "DYLD_LIBRARY_PATH": BIN}
 FPS = M["fps"]
 SR = 8000
 

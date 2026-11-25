@@ -1,41 +1,25 @@
 /**
  * 字体：中文 Noto Serif SC（思源宋体），英文 Cormorant Garamond。
  *
- * Google Fonts 把 Noto Serif SC 切成约 100 个 unicode-range 分片。这里只加载
- * 覆盖 content.ts 里实际出现的字的分片，所以替换文案后会自动加载新字所在的分片，
- * 不用手动维护子集。
+ * 两个都是本地的可变字体（public/fonts，tools/make_fonts.py 生成），渲染时不需要联网：
+ * - NotoSerifSC-GB2312.woff2：字重 200–900，覆盖 GB2312 的 6763 个常用汉字、
+ *   中英文标点，以及 content.ts 里出现的所有字
+ * - CormorantGaramond-Latin.woff2：字重 300–700，拉丁字母
+ *
+ * 如果替换后的文案用到 GB2312 以外的生僻字，重新运行 python tools/make_fonts.py。
+ * 字体缺字时会回退到系统宋体，不会报错。
  */
-import { getInfo as getSerifScInfo, loadFont as loadSerifSc } from "@remotion/google-fonts/NotoSerifSC";
-import { loadFont as loadCormorant } from "@remotion/google-fonts/CormorantGaramond";
-import { ALL_TEXT } from "../config/content";
+import { loadFont } from "@remotion/fonts";
+import { staticFile } from "remotion";
 
-type SerifScSubset = NonNullable<NonNullable<Parameters<typeof loadSerifSc>[1]>["subsets"]>[number];
+const SERIF_SC = "Noto Serif SC Local";
+const SERIF_LATIN = "Cormorant Garamond Local";
 
-const parseRanges = (ranges: string): [number, number][] =>
-  ranges.split(",").map((part) => {
-    const [a, b] = part.trim().replace(/^U\+/i, "").split("-");
-    return [parseInt(a, 16), parseInt(b ?? a, 16)];
-  });
-
-const codepoints = [...new Set([...ALL_TEXT].map((c) => c.codePointAt(0) ?? 0))];
-
-const neededSubsets = Object.entries(getSerifScInfo().unicodeRanges)
-  .filter(([, ranges]) => parseRanges(ranges).some(([a, b]) => codepoints.some((c) => c >= a && c <= b)))
-  .map(([key]) => key as SerifScSubset);
-
-export const SERIF_SC = loadSerifSc("normal", {
-  weights: ["300", "400", "600", "900"],
-  subsets: neededSubsets,
-  // 4 个字重 × 实际用到的分片（当前文案约 23 个），已经是按需加载
-  ignoreTooManyRequestsWarning: true,
-}).fontFamily;
-
-export const SERIF_LATIN = loadCormorant("normal", {
-  weights: ["400", "500", "600"],
-  subsets: ["latin"],
-}).fontFamily;
+// loadFont 内部会 delayRender，直到字体可用才开始截帧
+loadFont({ family: SERIF_SC, url: staticFile("fonts/NotoSerifSC-GB2312.woff2"), weight: "200 900", format: "woff2" });
+loadFont({ family: SERIF_LATIN, url: staticFile("fonts/CormorantGaramond-Latin.woff2"), weight: "300 700", format: "woff2" });
 
 /** 中文：思源宋体优先，再回退到系统宋体 */
-export const FONT_CN = `"${SERIF_SC}", "Source Han Serif SC", "Songti SC", "STSong", "SimSun", serif`;
+export const FONT_CN = `"${SERIF_SC}", "Noto Serif SC", "Source Han Serif SC", "Songti SC", "STSong", "SimSun", serif`;
 /** 英文 / 拉丁文副标 */
-export const FONT_EN = `"${SERIF_LATIN}", "Cormorant", "Times New Roman", serif`;
+export const FONT_EN = `"${SERIF_LATIN}", "Cormorant Garamond", "Times New Roman", serif`;

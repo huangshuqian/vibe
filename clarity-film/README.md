@@ -81,7 +81,7 @@
 - **情绪配色**：青翠绿 `#3CE6B0`、赤焰红 `#FF5B79`、琥珀暖金 `#F0B94D`、冷光银紫 `#B8A8FF`、深海湛蓝 `#3BA4FF`，星盘外环与点睛色统一用暖香槟金 `#E6C97A`。
 - **背景**：三层视差星空 + 呼吸微闪、中层邻近星点连线、7 条缓慢形变的星图等高线 + 2 条天球大圆、跟随星盘位置和情绪色的径向氛围光、暗角、`feTurbulence` 胶片噪点（opacity 0.04）。
 - **音频响应**（`lib/audio.tsx`）：`useAudioData` 解码音乐，`visualizeAudio`（512 个频点，1024 点 FFT）取 30–150 Hz 和 150–2000 Hz 两段能量，按整首歌的分位数（`tools/analysis/calibrate_reactive.py`）归一化，再做 3 帧平均和 4 帧指数释放。实测：前奏低频约 0.44，breakdown 约 0.40，drop 里 0.75–1.0。用法很克制：星盘光晕强度、低频带来的星盘缩放不超过 1.2%、日冕射线长度、星点亮度最多提高 30%。
-- **字体**：中文 Noto Serif SC（思源宋体），回退 Source Han Serif SC / Songti SC / STSong / SimSun；英文 Cormorant Garamond。正文行高 1.85。
+- **字体**：中文 Noto Serif SC（思源宋体），回退 Source Han Serif SC / Songti SC / STSong / SimSun；英文 Cormorant Garamond。两个都是放在 `public/fonts/` 里的本地可变字体，渲染时不需要联网。正文行高 1.85。
 
 ---
 
@@ -104,11 +104,15 @@ src/
   scenes/            Prelude / QuoteScene / Interaction / Finale
   Film.tsx           整片装配 + <Audio> 淡出
   Root.tsx           ClarityFilm（按 FORMAT）+ ClarityFilmPortrait（1080×1920）
+public/
+  music.mp3          背景音乐
+  fonts/             本地字体（思源宋体 GB2312 子集、Cormorant Garamond）
 tools/
   analysis/          analyze.py → bars.py → export_timing.py → calibrate_reactive.py → plot_edit.py
   timeline.mjs       打印时间线并检查卡点（npm run timeline）
   stills.mjs         按小节号批量渲染静帧（npm run stills -- 10 18.5 f:900）
   qc.py              成片自动检查
+  make_fonts.py      生成 public/fonts 里的子集字体（补生僻字时用）
   patch_compositor.py  glibc 2.34 机器用，见下文
 ```
 
@@ -116,26 +120,47 @@ tools/
 
 ## 5. 依赖与运行
 
-需要 Node 18+。
+需要 Node 18+（推荐 20 或 22），Windows、macOS、Linux 都可以。
 
 | 包 | 用途 |
 |---|---|
 | `remotion`、`@remotion/cli` | 基础 |
 | `@remotion/media-utils` | `useAudioData`、`visualizeAudio`（音频响应） |
 | `@remotion/media` | `<Audio>`，带逐帧音量曲线（结尾淡出） |
-| `@remotion/google-fonts` | 加载 Noto Serif SC、Cormorant Garamond |
+| `@remotion/fonts` | 加载 `public/fonts/` 里的本地字体 |
 | `typescript`、`@types/react`（dev） | 类型检查 |
 
+### 本地渲染
+
 ```bash
+cd clarity-film
 npm install
-npm run studio          # 预览
-npm run render          # → out/clarity-film.mp4
+npm run render          # → out/clarity-film.mp4（1920×1080）
+```
+
+其他命令：
+
+```bash
+npm run studio          # 浏览器里预览、拖时间轴
 npm run render:portrait # → out/clarity-film-portrait.mp4（1080×1920）
 npm run timeline        # 打印时间线并检查卡点
+npm run stills -- 10 18.5 f:900   # 按小节号 / 帧号导出静帧到 out/stills/
 npm run typecheck
 ```
 
-渲染时需要能访问 Google Fonts。Noto Serif SC 只加载 `content.ts` 里实际用到的字所在的分片（当前 23 片 × 4 个字重）。
+### 网络
+
+- `npm install` 需要访问 npm 源。国内网络慢的话可以用镜像：`npm install --registry=https://registry.npmmirror.com`。
+- 第一次渲染时，Remotion 会从 `remotion.media` 下载一个约 100 MB 的 Chrome Headless Shell，之后就缓存在 `node_modules/.remotion/` 里。如果下载失败，可以改用本机已经装好的 Chrome：`npx remotion render src/index.ts ClarityFilm out/clarity-film.mp4 --browser-executable="<chrome 的路径>"`。
+- 字体和音乐都在本地，渲染过程中不需要别的网络访问。
+
+### 渲染速度
+
+`remotion.config.ts` 里的并发数是 `min(6, CPU 核数)`。8 核 Linux 机器上整片大约 4 分钟。机器内存小的话，在命令后面加 `--concurrency=2`。
+
+### 字体
+
+`public/fonts/NotoSerifSC-GB2312.woff2`（2.8 MB）覆盖 GB2312 的 6763 个常用汉字、标点，以及 `content.ts` 里现有的所有字。如果新文案用到 GB2312 以外的生僻字，这些字会回退成系统宋体，不会报错。要补字，运行 `pip install fonttools brotli && python tools/make_fonts.py`，它会从 google/fonts 下载原始字体，再按 `content.ts` 重新子集化。字体许可：SIL Open Font License，见 `public/fonts/OFL-*.txt`。
 
 **重新分析音乐**（只有换音乐时才需要，Python 3.10+）：
 
@@ -155,7 +180,7 @@ python tools/qc.py                           # 渲染之后
 
 ## 6. 常见修改
 
-- **替换文案**：改 `src/config/content.ts` 的 `QUOTES`。每条有 `setup`（铺垫）、`punch`（金句，`\n` 换行）、`highlight`（高亮词，出现在铺垫句或金句里都可以）、`keyword`、`english`、`tags`、`mood`、`layout`、`emblem`。字号会按最长一行自动缩小，新字会自动加载对应的字体分片。
+- **替换文案**：改 `src/config/content.ts` 的 `QUOTES`。每条有 `setup`（铺垫）、`punch`（金句，`\n` 换行）、`highlight`（高亮词，出现在铺垫句或金句里都可以）、`keyword`、`english`、`tags`、`mood`、`layout`、`emblem`。字号会按最长一行自动缩小。生僻字见第 5 节「字体」。
 - **调整时长 / 卡点**：改每条的 `bars: { start, punch, end }`（小节号），相邻两条首尾要相接。`npm run timeline` 会报出不连续、金句不在段内或者相邻构图重复的问题。
 - **切竖屏**：`src/config/format.ts` 里 `FORMAT = "portrait"`，或者直接渲染 `ClarityFilmPortrait`。竖屏样张见 `docs/portrait_sheet.jpg`。
 - **换音乐**：替换 `public/music.mp3`，跑一遍第 5 节的分析脚本，再按新的段落表重新分配 `bars`。

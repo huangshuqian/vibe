@@ -242,21 +242,3 @@ const CN_NUM = ["一", "二", "三", "四", "五", "六", "七", "八", "九", "
 export const eyebrowOf = (i: number, q: Quote) => `第${CN_NUM[i] ?? i + 1}则　${q.keyword}`;
 export const indexLabel = (i: number) => String(i + 1).padStart(2, "0");
 export const totalLabel = () => String(QUOTES.length).padStart(2, "0");
-
-/** 所有出现在画面上的中文，用来决定要加载哪些 Noto Serif SC 字体分片 */
-export const ALL_TEXT = [
-  OPENING.line,
-  OPENING.title,
-  INTERACTION.question,
-  FINALE.title,
-  FINALE.closing,
-  ...QUOTES.flatMap((q, i) => [
-    q.setup,
-    q.punch,
-    q.keyword,
-    eyebrowOf(i, q),
-    ...(q.splitChars ?? []),
-    ...q.tags.flatMap((t) => [t.k, t.v]),
-  ]),
-  "0123456789/·？，",
-].join("");
