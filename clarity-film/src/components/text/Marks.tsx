@@ -90,16 +90,18 @@ export const TagLabel: React.FC<{ tag: Tag; start: number; mood: string; u: numb
   );
 };
 
-export const EnglishLine: React.FC<{ text: string; start: number; u: number; color?: string; size?: number; align?: "left" | "center" }> = ({
-  text,
-  start,
-  u,
-  color = GOLD,
-  size = TYPE.english,
-  align = "left",
-}) => {
+export const EnglishLine: React.FC<{
+  text: string;
+  start: number;
+  u: number;
+  color?: string;
+  size?: number;
+  align?: "left" | "center";
+  /** 入场帧数 */
+  dur?: number;
+}> = ({ text, start, u, color = GOLD, size = TYPE.english, align = "left", dur = 26 }) => {
   const frame = useCurrentFrame();
-  const p = ramp(frame, start, 26);
+  const p = ramp(frame, start, dur);
   // 字距从 0.6em 收拢到 0.35em
   const tracking = 0.35 + 0.25 * (1 - p);
   return (

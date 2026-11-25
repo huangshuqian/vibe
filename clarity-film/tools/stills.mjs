@@ -1,28 +1,38 @@
-// QA: bundle once, render stills at the given bars (or frames) and an optional contact sheet.
-//   node tools/stills.mjs [--portrait] 9.3 11.3 f:360 ...
-// Numbers are bar positions (bar k = downbeats[k]); "f:N" is a raw frame number.
+// QA: bundle once, render stills at the given bars (or frames).
+//   node tools/stills.mjs [--short] [--portrait] 9.3 11.3 f:360 ...
+// Numbers are music bar positions (bar k = downbeats[k]); "f:N" is a raw video frame number.
+// --short renders the fast cut (ClarityShort), default is the full version (ClarityFilm).
 import { bundle } from "@remotion/bundler";
 import { renderStill, selectComposition } from "@remotion/renderer";
+import { build } from "esbuild";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const music = JSON.parse(fs.readFileSync(path.join(root, "src/data/music.json"), "utf8"));
 const args = process.argv.slice(2);
 const portrait = args.includes("--portrait");
-const id = portrait ? "ClarityFilmPortrait" : "ClarityFilm";
-const outDir = path.join(root, "out", portrait ? "stills-portrait" : "stills");
+const short = args.includes("--short");
+const id = `${short ? "ClarityShort" : "ClarityFilm"}${portrait ? "Portrait" : ""}`;
+const outDir = path.join(root, "out", `stills-${short ? "short" : "full"}${portrait ? "-portrait" : ""}`);
 fs.mkdirSync(outDir, { recursive: true });
 
-const barSec = (bar) => {
-  const d = music.downbeats;
-  const i = Math.min(Math.floor(bar), d.length - 2);
-  return d[i] + (bar - i) * (d[i + 1] - d[i]);
-};
+// bar → video frame, using the same timeline code as the video
+const compiled = await build({
+  entryPoints: [path.join(root, "src/config/timeline.ts")],
+  bundle: true,
+  write: false,
+  format: "esm",
+  platform: "node",
+  loader: { ".json": "json" },
+  logLevel: "error",
+});
+const { TIMELINES } = await import(`data:text/javascript;base64,${Buffer.from(compiled.outputFiles[0].text).toString("base64")}`);
+const tl = TIMELINES[short ? "short" : "full"];
+
 const frames = args
   .filter((a) => !a.startsWith("--"))
-  .map((a) => (a.startsWith("f:") ? { label: a.replace(":", ""), frame: Number(a.slice(2)) } : { label: `bar${a}`, frame: Math.round(barSec(Number(a)) * music.fps) }));
+  .map((a) => (a.startsWith("f:") ? { label: a.replace(":", ""), frame: Number(a.slice(2)) } : { label: `bar${a}`, frame: tl.barFrame(Number(a)) }));
 
 const patched = path.join(root, "bin", "compositor");
 const binariesDirectory = fs.existsSync(path.join(patched, "remotion")) ? patched : null;

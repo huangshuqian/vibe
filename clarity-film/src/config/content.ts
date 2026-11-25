@@ -1,11 +1,6 @@
 /**
  * 全片文案与视觉配置（批量替换文案只需要改这个文件）。
- *
- * 时间全部用「小节号」表示：bar k 就是 src/data/music.json 里的 downbeats[k]
- * （118 BPM，一小节 2.034 s）。小节号由 src/config/timeline.ts 换算成秒和帧。
- *   - start  本段第一拍（上一段在这一拍切走）
- *   - punch  第 2 拍「金句定格」触发的小节（乐句重音）
- *   - end    本段结束（= 下一段的 start）
+ * 每条语录在完整版 / 快剪版里各占哪几个小节，在 src/config/cuts.ts 里配置。
  */
 import type { MoodKey } from "./palette";
 
@@ -42,29 +37,12 @@ export type Quote = {
   splitChars?: [string, string];
   /** vertical-accent：竖排关键词放在左边还是右边 */
   verticalSide?: "left" | "right";
-  bars: { start: number; punch: number; end: number };
 };
 
 export const OPENING = {
   line: "献给每一个，在深夜里突然想通的瞬间",
   title: "清醒录",
   english: "CLARITAS · MENTIS",
-  bars: {
-    start: 0,
-    /** 光点向左右拉出水平光线 */
-    line: 1,
-    /** 引导句逐字扫光 */
-    text: 2,
-    /** 光线收束，星盘轨道描边生长 */
-    orbit: 4,
-    /** 9 枚节点从这一小节开始按拍点亮（每拍一枚） */
-    nodes: 5,
-    /** 星网连线 */
-    net: 6,
-    /** 总标题 */
-    title: 7,
-    end: 8,
-  },
 };
 
 export const QUOTES: Quote[] = [
@@ -82,7 +60,6 @@ export const QUOTES: Quote[] = [
       { k: "关系", v: "错频沟通" },
       { k: "意象", v: "错位双轨" },
     ],
-    bars: { start: 8, punch: 10, end: 12 },
   },
   {
     mood: "abyss",
@@ -98,7 +75,6 @@ export const QUOTES: Quote[] = [
       { k: "选择", v: "孤独与羁绊" },
       { k: "意象", v: "相切双环" },
     ],
-    bars: { start: 12, punch: 14, end: 16 },
   },
   {
     mood: "jade",
@@ -115,7 +91,6 @@ export const QUOTES: Quote[] = [
       { k: "心法", v: "停止内耗" },
       { k: "意象", v: "三层同心弧" },
     ],
-    bars: { start: 16, punch: 18, end: 22 },
   },
   {
     mood: "amber",
@@ -132,7 +107,6 @@ export const QUOTES: Quote[] = [
       { k: "清醒", v: "课题分离" },
       { k: "意象", v: "星芒盾" },
     ],
-    bars: { start: 22, punch: 24, end: 28 },
   },
   {
     mood: "ember",
@@ -148,7 +122,6 @@ export const QUOTES: Quote[] = [
       { k: "人间", v: "真实松弛" },
       { k: "意象", v: "残月刻度仪" },
     ],
-    bars: { start: 28, punch: 30, end: 32 },
   },
   {
     mood: "lilac",
@@ -164,7 +137,6 @@ export const QUOTES: Quote[] = [
       { k: "和解", v: "允许不同" },
       { k: "意象", v: "镜像双圆" },
     ],
-    bars: { start: 32, punch: 34, end: 36 },
   },
   {
     mood: "ember",
@@ -181,7 +153,6 @@ export const QUOTES: Quote[] = [
       { k: "悖论", v: "理性与爱" },
       { k: "意象", v: "烈焰对峙方阵" },
     ],
-    bars: { start: 36, punch: 40, end: 44 },
   },
   {
     mood: "amber",
@@ -198,7 +169,6 @@ export const QUOTES: Quote[] = [
       { k: "破局", v: "尽兴而活" },
       { k: "意象", v: "日冕脉冲" },
     ],
-    bars: { start: 44, punch: 48, end: 51 },
   },
   {
     mood: "abyss",
@@ -214,25 +184,17 @@ export const QUOTES: Quote[] = [
       { k: "共情", v: "深夜同路人" },
       { k: "意象", v: "星尘回声" },
     ],
-    bars: { start: 51, punch: 53, end: 56 },
   },
 ];
 
 export const INTERACTION = {
   question: "哪一句话，刚好说中了此刻的你？",
-  bars: {
-    start: 56,
-    /** 9 枚迷你圆点从这一小节开始按拍点亮 */
-    dots: 57,
-    end: 60,
-  },
 };
 
 export const FINALE = {
   title: "清醒录",
   english: "CLARITAS · MENTIS",
   closing: "保持清醒 · 依然热爱",
-  bars: { start: 60, title: 61, english: 62, closing: 63, end: 65 },
 };
 
 /** 外环 textPath 环绕小字的固定前缀 */

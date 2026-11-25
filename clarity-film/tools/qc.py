@@ -1,7 +1,10 @@
 """Automatic QC of the rendered video.
 
-    python tools/qc.py [out/clarity-film.mp4]
+    python tools/qc.py                                  # full cut, out/clarity-film.mp4
+    python tools/qc.py --cut short                      # fast cut, out/clarity-short.mp4
+    python tools/qc.py --cut short path/to/video.mp4
 
+Expected frame count, music offset and fade come from `node tools/timeline.mjs --json`.
 Uses the ffmpeg / ffprobe that ship with Remotion (or FFMPEG / FFPROBE env vars).
 """
 import json
@@ -13,9 +16,21 @@ import numpy as np
 import soundfile as sf
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-VIDEO = sys.argv[1] if len(sys.argv) > 1 else os.path.join(ROOT, "out", "clarity-film.mp4")
+args = sys.argv[1:]
+CUT = "full"
+if "--cut" in args:
+    i = args.index("--cut")
+    CUT = args[i + 1]
+    del args[i: i + 2]
+VIDEO = args[0] if args else os.path.join(ROOT, "out", "clarity-film.mp4" if CUT == "full" else f"clarity-{CUT}.mp4")
 MUSIC = os.path.join(ROOT, "public", "music.mp3")
 M = json.load(open(os.path.join(ROOT, "src", "data", "music.json")))
+TL = json.loads(subprocess.run(["node", os.path.join(ROOT, "tools", "timeline.mjs"), "--json", CUT],
+                               capture_output=True, text=True, check=True).stdout)[CUT]
+START = TL["musicStartSec"]
+FADE_FROM = TL["fadeOut"]["from"] / TL["fps"]
+FADE_TO = TL["fadeOut"]["to"] / TL["fps"]
+print(f"cut {CUT}: {VIDEO}")
 import glob  # noqa: E402
 
 # Remotion installs one platform package: compositor-linux-x64-gnu, compositor-darwin-arm64, compositor-win32-x64-msvc, ...
@@ -44,10 +59,10 @@ def probe():
     return json.loads(out)
 
 
-def pcm(path, seconds=None):
+def pcm(path, seconds=None, start=0.0):
     # Remotion's ffmpeg build has no raw PCM muxer, so decode to a 16-bit WAV file
     tmp = os.path.join(ROOT, "out", "_qc.wav")
-    cmd = [FFMPEG, "-v", "error", "-y", "-i", path, "-ac", "1", "-ar", str(SR), "-c:a", "pcm_s16le"]
+    cmd = [FFMPEG, "-v", "error", "-y", "-ss", f"{start:.4f}", "-i", path, "-ac", "1", "-ar", str(SR), "-c:a", "pcm_s16le"]
     if seconds:
         cmd += ["-t", str(seconds)]
     subprocess.run(cmd + [tmp], env=ENV, check=True)
@@ -69,38 +84,38 @@ a = next(s for s in info["streams"] if s["codec_type"] == "audio")
 dur = float(info["format"]["duration"])
 check("resolution", (v["width"], v["height"]) == (1920, 1080), f'{v["width"]}x{v["height"]}')
 check("frame rate", v["r_frame_rate"] == f"{FPS}/1", v["r_frame_rate"])
-check("video frames", int(v["nb_read_frames"]) == M["durationInFrames"], f'{v["nb_read_frames"]} (expected {M["durationInFrames"]})')
-check("length vs music end", abs(dur - M["videoEndSec"]) < 0.1, f"video {dur:.3f} s, music stops at {M['musicEndSec']} s")
+check("video frames", int(v["nb_read_frames"]) == TL["totalFrames"], f'{v["nb_read_frames"]} (expected {TL["totalFrames"]})')
+check("length", abs(dur - TL["totalFrames"] / FPS) < 0.1, f"video {dur:.3f} s, timeline {TL['totalFrames'] / FPS:.3f} s")
 check("audio stream", int(a["sample_rate"]) >= 44100 and int(a["channels"]) == 2, f'{a["sample_rate"]} Hz, {a["channels"]} ch')
 
 out_a = pcm(VIDEO)
-src_a = pcm(MUSIC, seconds=dur)
+src_a = pcm(MUSIC, seconds=dur, start=START)
 n = min(len(out_a), len(src_a))
-body = slice(int(1 * SR), int(M["fadeOutStartSec"] * SR))
+body = slice(int(1 * SR), int(FADE_FROM * SR))
 x, y = out_a[body], src_a[body]
 lags = range(-80, 81, 4)
 corr = [np.corrcoef(x[max(0, -l): len(x) - max(0, l)], y[max(0, l): len(y) - max(0, -l)])[0, 1] for l in lags]
 best = int(np.argmax(corr))
 check("audio matches source before the fade", corr[best] > 0.99 and abs(list(lags)[best]) <= 8,
-      f"correlation {corr[best]:.4f} at offset {list(lags)[best] / SR * 1000:.1f} ms")
+      f"correlation {corr[best]:.4f} at offset {list(lags)[best] / SR * 1000:.1f} ms (source from {START:.3f} s)")
 rms = lambda s: float(np.sqrt(np.mean(s ** 2)) + 1e-12)
 check("audio level unchanged before the fade", abs(rms(x) / rms(y) - 1) < 0.03, f"rendered/source RMS {rms(x) / rms(y):.3f}")
 
 win = int(0.25 * SR)
 db = lambda s: 20 * np.log10(rms(s))
-fs = int(M["fadeOutStartSec"] * SR)
-fe = int(M["fadeOutEndSec"] * SR)
+fs = int(FADE_FROM * SR)
+fe = int(FADE_TO * SR)
 before = db(out_a[fs - win: fs])
 mid = db(out_a[(fs + fe) // 2 - win // 2: (fs + fe) // 2 + win // 2])
 tail = db(out_a[fe - win // 2: n])
-check("music fades out over the last 2.3 s", before - mid > 4 and tail < -45,
+check(f"music fades out over the last {FADE_TO - FADE_FROM:.1f} s", before - mid > 4 and tail < -45,
       f"{before:.1f} dB before fade, {mid:.1f} dB mid-fade, {tail:.1f} dB in the last {(n - fe + win // 2) / SR:.2f} s")
 
 L = luma()
 check("starts from black", L[0] < 1.5, f"frame 0 mean RGB {L[0]:.2f}")
 check("ends on black", L[-1] < 1.5, f"last frame mean RGB {L[-1]:.2f}")
 dark = np.flatnonzero(L < 3)
-inside = dark[(dark > 30) & (dark < int(M["fadeOutStartSec"] * FPS))]
+inside = dark[(dark > 30) & (dark < TL["fadeOut"]["from"])]
 check("no black frames between intro and fade", len(inside) == 0, f"{len(inside)} near-black frames in the body")
 jumps = np.abs(np.diff(L))
 check("no sudden brightness jumps", jumps.max() < 12, f"max frame-to-frame luma change {jumps.max():.1f} (0-255)")

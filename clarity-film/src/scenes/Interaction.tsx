@@ -1,13 +1,13 @@
 /**
- * 互动留白屏（bar 56–60）：星盘收起，深邃星空中央浮现提问，
- * 下方 9 枚情绪色迷你圆点从 bar 57 起每拍点亮一枚。
+ * 互动留白屏：星盘收起，深邃星空中央浮现提问，下方 9 枚情绪色迷你圆点依次点亮。
+ * 完整版 bar 56–60，圆点从 bar 57 起每拍一枚；快剪版只有 bar 30 一小节，圆点按十六分音符点亮。
  */
 import React from "react";
 import { useCurrentFrame, useVideoConfig } from "remotion";
 import { INTERACTION, QUOTES, indexLabel } from "../config/content";
 import { TYPE, useStage } from "../config/format";
 import { GOLD, INK, MOOD } from "../config/palette";
-import { beatFrame } from "../config/timeline";
+import { useTimeline } from "../config/timeline";
 import { EASE_IN_OUT, ramp, rgba, springAt } from "../lib/anim";
 import { FONT_CN, FONT_EN } from "../lib/fonts";
 import { CharReveal, fitSize } from "../components/text/CharReveal";
@@ -16,13 +16,14 @@ export const Interaction: React.FC<{ from: number; to: number }> = ({ from, to }
   const frame = useCurrentFrame(); // 本地帧
   const { fps } = useVideoConfig();
   const { W, H, u, portrait } = useStage();
+  const { cut, beatFrame, p } = useTimeline();
   const D = to - from;
-  const exit = ramp(frame, D - 12, 12, EASE_IN_OUT);
+  const exit = ramp(frame, D - p(12), p(12), EASE_IN_OUT);
   const size = fitSize(INTERACTION.question, W * 0.84, TYPE.question * u, 0.12);
   const rowW = portrait ? W * 0.84 : W * 0.5;
   const step = rowW / (QUOTES.length - 1);
   const rowY = H * (portrait ? 0.56 : 0.6);
-  const litAt = (i: number) => beatFrame(INTERACTION.bars.dots, i) - from;
+  const litAt = (i: number) => beatFrame(cut.interaction.dots, i * cut.interaction.dotStepBeats) - from;
   const lastLit = litAt(QUOTES.length - 1);
   const progress = ramp(frame, litAt(0), lastLit - litAt(0), (t) => t);
 
@@ -31,9 +32,9 @@ export const Interaction: React.FC<{ from: number; to: number }> = ({ from, to }
       <div style={{ position: "absolute", left: 0, right: 0, top: H * (portrait ? 0.4 : 0.36), display: "flex", justifyContent: "center" }}>
         <CharReveal
           text={INTERACTION.question}
-          start={8}
-          stagger={2.6}
-          dur={20}
+          start={p(8)}
+          stagger={p(2.6)}
+          dur={p(20)}
           blur={4}
           fontSize={size}
           fontFamily={FONT_CN}
@@ -58,7 +59,7 @@ export const Interaction: React.FC<{ from: number; to: number }> = ({ from, to }
         const c = MOOD[q.mood];
         const s = springAt(frame, litAt(i), fps, 10, 0.7, 160);
         const flash = frame >= litAt(i) ? Math.exp(-(frame - litAt(i)) / 8) : 0;
-        const appear = ramp(frame, 20 + i * 2, 16);
+        const appear = ramp(frame, p(20 + i * 2), p(16));
         const x = (W - rowW) / 2 + i * step;
         return (
           <div key={i} style={{ position: "absolute", left: x, top: rowY, opacity: appear }}>

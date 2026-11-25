@@ -9,7 +9,7 @@ import { random, useCurrentFrame, useVideoConfig } from "remotion";
 import { eyebrowOf, indexLabel, totalLabel, type Quote } from "../config/content";
 import { TYPE, useStage, type Stage } from "../config/format";
 import { GOLD, INK, MOOD } from "../config/palette";
-import type { QuoteSegment } from "../config/timeline";
+import { useTimeline, type QuoteSegment } from "../config/timeline";
 import { clamp01, EASE_IN_OUT, mixHex, ramp, rgba, springAt } from "../lib/anim";
 import { FONT_CN } from "../lib/fonts";
 import { quoteGeometry, type TextBox } from "../lib/layout";
@@ -17,13 +17,14 @@ import { Stroke } from "../components/emblems/common";
 import { CharReveal, fitSize } from "../components/text/CharReveal";
 import { EnglishLine, Eyebrow, IndexMark, TagLabel } from "../components/text/Marks";
 
-/** 本地时间表（帧，相对段落起点） */
+/** 本地时间表（帧，相对段落起点；实际值再乘以版本的 pace） */
 const T_INDEX = 4;
 const T_EYEBROW = 9;
 const T_SETUP = 14;
 const EXIT = 10;
 
-type Beats = { P: number; D: number };
+/** P = 金句帧，A = 高亮帧，D = 段落长度（都相对段落起点），p = 时长 × pace */
+type Beats = { P: number; A: number; D: number; p: (frames: number) => number };
 
 const metalFill = (mood: string) =>
   `linear-gradient(180deg, #FFF8E6 0%, ${mixHex(GOLD, "#FFFFFF", 0.35)} 22%, ${GOLD} 46%, ${mixHex(mood, GOLD, 0.35)} 70%, ${mixHex(
@@ -65,9 +66,9 @@ const TextStack: React.FC<{ q: Quote; index: number; box: TextBox; beats: Beats;
   const frame = useCurrentFrame();
   const { u } = stage;
   const mood = MOOD[q.mood];
-  const { P } = beats;
-  const setupDim = 1 - 0.42 * ramp(frame, P, 16) * (q.setup.includes(q.highlight) ? 0 : 1);
-  const rule = ramp(frame, P - 4, 18);
+  const { P, A, p } = beats;
+  const setupDim = 1 - 0.42 * ramp(frame, P, p(16)) * (q.setup.includes(q.highlight) ? 0 : 1);
+  const rule = ramp(frame, P - p(4), p(18));
   const setupSize = fitSize(q.setup, box.w, TYPE.setup * u);
   const punchSize = fitSize(q.punch, box.w, TYPE.punch * u, 0.04);
   return (
@@ -80,23 +81,23 @@ const TextStack: React.FC<{ q: Quote; index: number; box: TextBox; beats: Beats;
         transform: box.anchor === "center" ? "translateY(-50%)" : undefined,
       }}
     >
-      <IndexMark index={indexLabel(index)} total={totalLabel()} start={T_INDEX} u={u} />
+      <IndexMark index={indexLabel(index)} total={totalLabel()} start={p(T_INDEX)} u={u} />
       <div style={{ height: 20 * u }} />
-      <Eyebrow text={eyebrowOf(index, q)} start={T_EYEBROW} u={u} />
+      <Eyebrow text={eyebrowOf(index, q)} start={p(T_EYEBROW)} u={u} />
       <div style={{ height: 26 * u }} />
       <div style={{ opacity: setupDim }}>
         <CharReveal
           text={q.setup}
-          start={T_SETUP}
-          stagger={2.2}
-          dur={16}
+          start={p(T_SETUP)}
+          stagger={p(2.2)}
+          dur={p(16)}
           blur={2.5}
           fontSize={setupSize}
           fontFamily={FONT_CN}
           fontWeight={300}
           color={rgba(INK, 0.9)}
           highlight={q.highlight}
-          highlightAt={P + 4}
+          highlightAt={A + p(4)}
           mood={mood}
         />
       </div>
@@ -106,8 +107,8 @@ const TextStack: React.FC<{ q: Quote; index: number; box: TextBox; beats: Beats;
       <CharReveal
         text={q.punch}
         start={P}
-        stagger={1.1}
-        dur={16}
+        stagger={p(1.1)}
+        dur={p(16)}
         blur={4}
         rise={0.2}
         fontSize={punchSize}
@@ -115,18 +116,18 @@ const TextStack: React.FC<{ q: Quote; index: number; box: TextBox; beats: Beats;
         fontWeight={600}
         letterSpacing="0.04em"
         highlight={q.highlight}
-        highlightAt={P + 4}
+        highlightAt={A + p(4)}
         mood={mood}
-        lineDelay={5}
+        lineDelay={p(5)}
       />
       <div style={{ height: 30 * u }} />
       <div style={{ display: "flex", gap: 26 * u, flexWrap: "wrap" }}>
         {q.tags.map((t, k) => (
-          <TagLabel key={k} tag={t} start={P + 14 + k * 6} mood={mood} u={u} />
+          <TagLabel key={k} tag={t} start={P + p(14 + k * 6)} mood={mood} u={u} />
         ))}
       </div>
       <div style={{ height: 24 * u }} />
-      <EnglishLine text={q.english} start={P + 22} u={u} />
+      <EnglishLine text={q.english} start={P + p(22)} dur={p(26)} u={u} />
     </div>
   );
 };
@@ -139,9 +140,10 @@ const GiantGlyphs: React.FC<{
   P: number;
   vertical?: boolean;
   u: number;
-}> = ({ text, size, mood, P, vertical, u }) => {
+  p: (frames: number) => number;
+}> = ({ text, size, mood, P, vertical, u, p }) => {
   const frame = useCurrentFrame();
-  const reveal = ramp(frame, T_SETUP - 6, 40, EASE_IN_OUT);
+  const reveal = ramp(frame, p(T_SETUP - 6), p(40), EASE_IN_OUT);
   const lit = ramp(frame, P, 14);
   const common: React.CSSProperties = {
     fontFamily: FONT_CN,
@@ -190,26 +192,27 @@ const CenterSplit: React.FC<{ q: Quote; index: number; beats: Beats; stage: Stag
   const { u } = stage;
   const geo = quoteGeometry(stage, q);
   const mood = MOOD[q.mood];
-  const { P } = beats;
+  const { P, A, p } = beats;
   const top = geo.top!;
   const bottom = geo.bottom!;
   const split = geo.split!;
   const [lc, rc] = q.splitChars ?? [q.keyword[0], q.keyword.slice(1)];
-  const spread = springAt(frame, P, fps, 11) * 26 * u;
-  const setupDim = 1 - 0.38 * ramp(frame, P, 16);
+  const spread = springAt(frame, A, fps, 11) * 26 * u;
+  const setupDim = 1 - 0.38 * ramp(frame, P, p(16));
   const punchSize = fitSize(q.punch, bottom.w, 54 * u, 0.04);
   return (
     <>
       <div style={{ position: "absolute", left: top.x, top: top.y, width: top.w, display: "flex", flexDirection: "column", alignItems: "center" }}>
-        <IndexMark index={indexLabel(index)} total={totalLabel()} start={T_INDEX} u={u} align="center" />
+        <IndexMark index={indexLabel(index)} total={totalLabel()} start={p(T_INDEX)} u={u} align="center" />
         <div style={{ height: 12 * u }} />
-        <Eyebrow text={eyebrowOf(index, q)} start={T_EYEBROW} u={u} align="center" />
+        <Eyebrow text={eyebrowOf(index, q)} start={p(T_EYEBROW)} u={u} align="center" />
         <div style={{ height: 10 * u }} />
         <div style={{ opacity: setupDim }}>
           <CharReveal
             text={q.setup}
-            start={T_SETUP}
-            stagger={2}
+            start={p(T_SETUP)}
+            stagger={p(2)}
+            dur={p(14)}
             blur={2.5}
             fontSize={fitSize(q.setup, top.w, 40 * u)}
             fontFamily={FONT_CN}
@@ -217,7 +220,7 @@ const CenterSplit: React.FC<{ q: Quote; index: number; beats: Beats; stage: Stag
             color={rgba(INK, 0.9)}
             align="center"
             highlight={q.highlight}
-            highlightAt={P + 4}
+            highlightAt={A + p(4)}
             mood={mood}
           />
         </div>
@@ -227,15 +230,15 @@ const CenterSplit: React.FC<{ q: Quote; index: number; beats: Beats; stage: Stag
         { ch: rc, x: split.rx + spread },
       ].map(({ ch, x }, k) => (
         <div key={k} style={{ position: "absolute", left: x, top: split.y, transform: "translate(-50%, -50%)" }}>
-          <GiantGlyphs text={ch} size={split.size} mood={mood} P={P + k * 3} u={u} />
+          <GiantGlyphs text={ch} size={split.size} mood={mood} P={A + p(k * 3)} u={u} p={p} />
         </div>
       ))}
       <div style={{ position: "absolute", left: bottom.x, top: bottom.y, width: bottom.w, display: "flex", flexDirection: "column", alignItems: "center" }}>
         <CharReveal
           text={q.punch}
           start={P}
-          stagger={1.1}
-          dur={16}
+          stagger={p(1.1)}
+          dur={p(16)}
           blur={4}
           rise={0.2}
           fontSize={punchSize}
@@ -244,16 +247,16 @@ const CenterSplit: React.FC<{ q: Quote; index: number; beats: Beats; stage: Stag
           letterSpacing="0.04em"
           align="center"
           highlight={q.highlight}
-          highlightAt={P + 4}
+          highlightAt={A + p(4)}
           mood={mood}
-          lineDelay={5}
+          lineDelay={p(5)}
         />
         <div style={{ height: 14 * u }} />
         <div style={{ display: "flex", alignItems: "center", gap: 28 * u, flexWrap: "wrap", justifyContent: "center" }}>
           {q.tags.map((t, k) => (
-            <TagLabel key={k} tag={t} start={P + 14 + k * 6} mood={mood} u={u} />
+            <TagLabel key={k} tag={t} start={P + p(14 + k * 6)} mood={mood} u={u} />
           ))}
-          <EnglishLine text={q.english} start={P + 22} u={u} />
+          <EnglishLine text={q.english} start={P + p(22)} dur={p(26)} u={u} />
         </div>
       </div>
     </>
@@ -266,10 +269,10 @@ const VerticalAccent: React.FC<{ q: Quote; index: number; beats: Beats; stage: S
   const geo = quoteGeometry(stage, q);
   const v = geo.vertical!;
   const mood = MOOD[q.mood];
-  const grow = ramp(frame, 2, 36, EASE_IN_OUT);
+  const grow = ramp(frame, beats.p(2), beats.p(36), EASE_IN_OUT);
   const mid = (v.dividerTop + v.dividerBottom) / 2;
   const half = ((v.dividerBottom - v.dividerTop) / 2) * grow;
-  const lit = ramp(frame, beats.P, 14);
+  const lit = ramp(frame, beats.A, 14);
   return (
     <>
       {/* 细垂直分割线，从中点向上下生长 */}
@@ -300,7 +303,7 @@ const VerticalAccent: React.FC<{ q: Quote; index: number; beats: Beats; stage: S
         />
       ))}
       <div style={{ position: "absolute", left: v.x, top: v.y, transform: "translate(-50%, -50%)" }}>
-        <GiantGlyphs text={q.keyword} size={v.size} mood={mood} P={beats.P} vertical u={u} />
+        <GiantGlyphs text={q.keyword} size={v.size} mood={mood} P={beats.A} vertical u={u} p={beats.p} />
       </div>
       <TextStack q={q} index={index} box={geo.text} beats={beats} stage={stage} />
     </>
@@ -311,9 +314,10 @@ export const QuoteScene: React.FC<{ seg: QuoteSegment }> = ({ seg }) => {
   const frame = useCurrentFrame();
   const stage = useStage();
   const { quote: q, index } = seg;
-  const beats: Beats = { P: seg.punch - seg.from, D: seg.to - seg.from };
+  const { p } = useTimeline();
+  const beats: Beats = { P: seg.punch - seg.from, A: seg.accent - seg.from, D: seg.to - seg.from, p };
   const geo = quoteGeometry(stage, q);
-  const exit = ramp(frame, beats.D - EXIT, EXIT, EASE_IN_OUT);
+  const exit = ramp(frame, beats.D - p(EXIT), p(EXIT), EASE_IN_OUT);
   const mood = MOOD[q.mood];
 
   return (

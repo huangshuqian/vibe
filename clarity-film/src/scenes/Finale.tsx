@@ -1,5 +1,5 @@
 /**
- * 终幕定版（bar 60–65）：巨型金色刻度星盘 + 彩色星芒连线在 Rig 里展开，
+ * 终幕定版（完整版 bar 60–65，快剪版 bar 31–33）：巨型金色刻度星盘 + 彩色星芒连线在 Rig 里展开，
  * 这里负责暖金星尘扩散、超大金属标题、英文副标与收尾短句。整体淡出在 Film 里统一处理。
  */
 import React from "react";
@@ -7,7 +7,7 @@ import { random, useCurrentFrame } from "remotion";
 import { FINALE, QUOTES } from "../config/content";
 import { TYPE, useStage } from "../config/format";
 import { GOLD, INK, MOOD } from "../config/palette";
-import { barFrame } from "../config/timeline";
+import { useTimeline } from "../config/timeline";
 import { EASE_OUT, ramp, rgba } from "../lib/anim";
 import { useEnergy } from "../lib/audio";
 import { FONT_CN } from "../lib/fonts";
@@ -20,20 +20,21 @@ export const Finale: React.FC<{ from: number }> = ({ from }) => {
   const frame = useCurrentFrame(); // 本地帧
   const { W, H, u } = useStage();
   const { bass } = useEnergy();
-  const b = FINALE.bars;
+  const { cut, barFrame, p } = useTimeline();
+  const b = cut.finale;
   const at = (bar: number) => barFrame(bar) - from;
-  const titleIn = ramp(frame, at(b.title), 34);
+  const titleIn = ramp(frame, at(b.title), p(34));
   const titleSize = fitSize(FINALE.title, W * 0.8, TYPE.finaleTitle * u, 0.2);
   const maxR = Math.hypot(W, H) * 0.55;
-  const sweep = ramp(frame, at(b.title) + 10, 40, (t) => t);
+  const sweep = ramp(frame, at(b.title) + p(10), p(40), (t) => t);
 
   return (
     <div style={{ position: "absolute", inset: 0 }}>
       {/* 暖金星尘微粒：从中心缓慢扩散 */}
       <svg width={W} height={H} style={{ position: "absolute", inset: 0 }}>
         {Array.from({ length: DUST }, (_, i) => {
-          const birth = random(`dust-b-${i}`) * 150;
-          const life = 120 + random(`dust-l-${i}`) * 120;
+          const birth = p(random(`dust-b-${i}`) * 150);
+          const life = p(120 + random(`dust-l-${i}`) * 120);
           const t = (frame - birth) / life;
           if (t <= 0 || t >= 1) return null;
           const a = random(`dust-a-${i}`) * Math.PI * 2 + t * 0.6 * (random(`dust-s-${i}`) - 0.5);
@@ -114,13 +115,13 @@ export const Finale: React.FC<{ from: number }> = ({ from }) => {
           </div>
         </div>
         <div style={{ height: 18 * u }} />
-        <EnglishLine text={FINALE.english} start={at(b.english)} u={u} size={TYPE.finaleEnglish} align="center" />
+        <EnglishLine text={FINALE.english} start={at(b.english)} dur={p(26)} u={u} size={TYPE.finaleEnglish} align="center" />
         <div style={{ height: 40 * u }} />
         <CharReveal
           text={FINALE.closing}
           start={at(b.closing)}
-          stagger={2.4}
-          dur={18}
+          stagger={p(2.4)}
+          dur={p(18)}
           blur={3}
           fontSize={TYPE.finaleClosing * u}
           fontFamily={FONT_CN}

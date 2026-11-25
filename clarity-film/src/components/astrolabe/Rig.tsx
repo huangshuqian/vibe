@@ -9,10 +9,10 @@
  */
 import React from "react";
 import { useCurrentFrame, useVideoConfig } from "remotion";
-import { FINALE, OPENING, QUOTES, RING_MOTTO, indexLabel, totalLabel } from "../../config/content";
+import { QUOTES, RING_MOTTO, indexLabel, totalLabel } from "../../config/content";
 import { useStage } from "../../config/format";
 import { GOLD, MOOD } from "../../config/palette";
-import { BAR_SEC, FPS, SEGMENTS, barFrame, barPhase, beatFrame, segmentIndexAt } from "../../config/timeline";
+import { useTimeline, type Segment } from "../../config/timeline";
 import { clamp01, EASE_IN_OUT, ramp, rgba, springAt } from "../../lib/anim";
 import { useEnergy } from "../../lib/audio";
 import { FONT_EN } from "../../lib/fonts";
@@ -21,15 +21,13 @@ import { blendBySegment, rigStateAt } from "../../lib/rig";
 import { EMBLEMS } from "../emblems";
 import { Stroke } from "../emblems/common";
 
-const BAR_FRAMES = BAR_SEC * FPS;
 const NODE_COLORS = QUOTES.map((q) => MOOD[q.mood]);
 const NET_CHORDS = [
   ...NODE_COLORS.map((_, i) => [i, (i + 4) % 9] as const),
   ...NODE_COLORS.map((_, i) => [i, (i + 2) % 9] as const),
 ];
 
-const ringText = (segIdx: number) => {
-  const seg = SEGMENTS[segIdx];
+const ringText = (seg: Segment) => {
   const body =
     seg.kind === "quote"
       ? `${RING_MOTTO} · ${indexLabel(seg.index)} / ${totalLabel()} · ${seg.quote.english.replace(/\s*·\s*/g, " ")} · `
@@ -40,27 +38,29 @@ const ringText = (segIdx: number) => {
 export const Rig: React.FC = () => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
+  const tl = useTimeline();
   const stage = useStage();
   const { u } = stage;
   const { bass } = useEnergy();
+  const { cut, barFrame, beatFrame, barFrames, beatFrames, p } = tl;
 
-  const st = rigStateAt(frame, stage);
-  const segIdx = segmentIndexAt(frame);
-  const seg = SEGMENTS[segIdx];
-  const finaleFrom = barFrame(FINALE.bars.start);
+  const st = rigStateAt(tl, frame, stage);
+  const segIdx = tl.segmentIndexAt(frame);
+  const seg = tl.segments[segIdx];
+  const finaleFrom = barFrame(cut.finale.start);
 
-  // 描边生长：序幕从第 4 小节开始画；终幕重新展开
+  // 描边生长：序幕在 orbit 小节开始画；终幕重新展开
   const draw =
     frame < finaleFrom
-      ? ramp(frame, barFrame(OPENING.bars.orbit), BAR_FRAMES * 1.25, EASE_IN_OUT)
-      : ramp(frame, finaleFrom, BAR_FRAMES * 1.4, EASE_IN_OUT);
+      ? ramp(frame, barFrame(cut.opening.orbit), p(barFrames * 1.25), EASE_IN_OUT)
+      : ramp(frame, finaleFrom, p(barFrames * 1.4), EASE_IN_OUT);
   if (st.opacity <= 0.001 || draw <= 0) return null;
 
-  // 金句点亮 / 高光脉冲
+  // 金句点亮（punch）/ 高光脉冲（accent）
   let lit = 0;
   let bloom = 0;
   if (seg.kind === "quote") {
-    const d = frame - seg.punch;
+    const d = frame - seg.accent;
     lit = ramp(frame, seg.punch, 12);
     bloom = d >= 0 ? clamp01((1 - Math.exp(-d / 2.5)) * Math.exp(-d / 16) * 1.5) : 0;
   }
@@ -71,40 +71,42 @@ export const Rig: React.FC = () => {
   const gold = GOLD;
   const ringO = 0.75 + 0.25 * lit;
 
-  // 环绕小字：段落切换前后 8 帧淡出淡入
+  // 环绕小字：段落切换前后淡出淡入
   const T = seg.from;
-  const nextT = SEGMENTS[segIdx + 1]?.from ?? Infinity;
-  const textO = clamp01(Math.min(frame - T, nextT - frame) / 8) * clamp01((draw - 0.75) / 0.25);
+  const nextT = tl.segments[segIdx + 1]?.from ?? Infinity;
+  const textO = clamp01(Math.min(frame - T, nextT - frame) / p(8)) * clamp01((draw - 0.75) / 0.25);
   const textR = R * 0.885;
 
   // 节点与星网
+  const openingNodeAt = (i: number) => beatFrame(cut.opening.nodes, i * cut.opening.nodeStepBeats);
+  const finaleNodeAt = (i: number) => finaleFrom + p(16 + i * 3);
   const nodeAlpha = (i: number) =>
-    blendBySegment(frame, (s) => {
-      if (s.kind === "prelude") return springAt(frame, beatFrame(OPENING.bars.nodes, i), fps, 12);
+    blendBySegment(tl, frame, (s) => {
+      if (s.kind === "prelude") return springAt(frame, openingNodeAt(i), fps, 12);
       if (s.kind === "quote") return i === s.index ? 1 : i < s.index ? 0.5 : 0.25;
-      if (s.kind === "finale") return springAt(frame, finaleFrom + 16 + i * 3, fps, 12);
+      if (s.kind === "finale") return springAt(frame, finaleNodeAt(i), fps, 12);
       return 0;
     });
   const nodeSize = (i: number) =>
-    blendBySegment(frame, (s) => (s.kind === "quote" ? (i === s.index ? 5.2 + 2 * bass : 2.6) : 4.2));
+    blendBySegment(tl, frame, (s) => (s.kind === "quote" ? (i === s.index ? 5.2 + 2 * bass : 2.6) : 4.2));
   /** 节点被点亮那一拍的闪光 */
   const nodeFlash = (i: number) =>
-    blendBySegment(frame, (s) => {
-      const at = s.kind === "prelude" ? beatFrame(OPENING.bars.nodes, i) : s.kind === "finale" ? finaleFrom + 16 + i * 3 : null;
+    blendBySegment(tl, frame, (s) => {
+      const at = s.kind === "prelude" ? openingNodeAt(i) : s.kind === "finale" ? finaleNodeAt(i) : null;
       return at !== null && frame >= at ? Math.exp(-(frame - at) / 7) : 0;
     });
-  const netP = blendBySegment(frame, (s) => {
-    if (s.kind === "prelude") return ramp(frame, barFrame(OPENING.bars.net), BAR_FRAMES * 1.2, EASE_IN_OUT);
-    if (s.kind === "finale") return ramp(frame, beatFrame(FINALE.bars.start, 2), BAR_FRAMES * 1.6, EASE_IN_OUT);
+  const netP = blendBySegment(tl, frame, (s) => {
+    if (s.kind === "prelude") return ramp(frame, barFrame(cut.opening.net), p(barFrames * 1.2), EASE_IN_OUT);
+    if (s.kind === "finale") return ramp(frame, finaleFrom + p(beatFrames * 2), p(barFrames * 1.6), EASE_IN_OUT);
     return 0;
   });
-  const netO = blendBySegment(frame, (s) => (s.kind === "prelude" ? 0.38 : s.kind === "finale" ? 0.62 : 0));
+  const netO = blendBySegment(tl, frame, (s) => (s.kind === "prelude" ? 0.38 : s.kind === "finale" ? 0.62 : 0));
   const nodePos = (i: number) => polar(0, 0, R, i * 40);
 
   const emblemSeg = seg.kind === "quote" ? seg : null;
   const Emblem = emblemSeg ? EMBLEMS[emblemSeg.quote.emblem] : null;
-  const emblemDraw = emblemSeg ? ramp(frame, emblemSeg.from + 3, 44, EASE_IN_OUT) : 0;
-  const emblemO = emblemSeg ? 1 - ramp(frame, emblemSeg.to - 12, 12, EASE_IN_OUT) : 0;
+  const emblemDraw = emblemSeg ? ramp(frame, emblemSeg.from + p(3), p(44), EASE_IN_OUT) : 0;
+  const emblemO = emblemSeg ? 1 - ramp(frame, emblemSeg.to - p(12), p(12), EASE_IN_OUT) : 0;
 
   return (
     <svg
@@ -179,7 +181,7 @@ export const Rig: React.FC = () => {
             dominantBaseline="middle"
           >
             <textPath href="#rig-text-path" textLength={2 * Math.PI * textR * 0.995} lengthAdjust="spacing">
-              {ringText(segIdx)}
+              {ringText(seg)}
             </textPath>
           </text>
         </g>
@@ -223,10 +225,10 @@ export const Rig: React.FC = () => {
               draw={emblemDraw}
               lit={lit}
               bloom={bloom}
-              sincePunch={frame - emblemSeg.punch}
+              sincePunch={frame - emblemSeg.accent}
               frame={frame}
               bass={bass}
-              barPhase={barPhase(frame)}
+              barPhase={tl.barPhase(frame)}
               u={u}
             />
           </g>

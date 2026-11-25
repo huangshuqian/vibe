@@ -8,10 +8,12 @@
  * - 前后 3 帧平均 + 4 帧指数释放，避免逐帧闪烁
  *
  * 整片只在 Film 顶层算一次，用 Context 分发给各个组件。
+ * 快剪版从音乐中间开始，取能量时要加上 timeline.musicStartFrame。
  */
 import { useAudioData, visualizeAudio, type MediaUtilsAudioData } from "@remotion/media-utils";
 import React, { createContext, useContext, useMemo } from "react";
 import { staticFile, useCurrentFrame, useVideoConfig } from "remotion";
+import { useTimeline } from "../config/timeline";
 
 export type Energy = {
   /** 低频（底鼓 / 808）0..1 */
@@ -66,8 +68,10 @@ const EnergyContext = createContext<Energy>(ZERO);
 export const AudioEnergyProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
+  const { musicStartFrame } = useTimeline();
   const audioData = useAudioData(MUSIC_SRC);
-  const value = useMemo(() => (audioData ? energyAt(audioData, frame, fps) : ZERO), [audioData, frame, fps]);
+  const musicFrame = frame + musicStartFrame;
+  const value = useMemo(() => (audioData ? energyAt(audioData, musicFrame, fps) : ZERO), [audioData, musicFrame, fps]);
   return <EnergyContext.Provider value={value}>{children}</EnergyContext.Provider>;
 };
 

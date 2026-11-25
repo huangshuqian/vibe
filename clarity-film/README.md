@@ -2,11 +2,24 @@
 
 纯音乐驱动、无旁白的 9 条语录混剪。背景音乐是仓库根目录的 `感知（Amageddon）.MP3`（复制到 `public/music.mp3`）。
 
-成片 `clarity-film-1080p.mp4`：1920×1080，30 fps，3969 帧（132.30 s），H.264 CRF 18 + AAC 320k，86 MB。
+同一套画面有两个版本，时间分配都在 `src/config/cuts.ts`：
+
+| 版本 | 合成 | 音乐 | 时长 | 每条语录 |
+|---|---|---|---|---|
+| **快剪版**（默认） | `ClarityShort` / `ClarityShortPortrait` | 第 8–33 小节（原曲 16.3–67.2 s） | 1527 帧，50.9 s | 2 小节（4 s），最长的两条 3 小节（6 s） |
+| 完整版 | `ClarityFilm` / `ClarityFilmPortrait` | 整首（0–132.3 s） | 3969 帧，132.3 s | 4–8 小节（8–16 s） |
+
+都是 1920×1080（竖屏 1080×1920），30 fps，H.264 CRF 18 + AAC 320k。
 
 - 所有动画由 `useCurrentFrame()`、`spring()`、`interpolate()` 和 Remotion 的确定性 `random()` 驱动，没有 CSS `@keyframes` / `transition` / `Math.random()`。
-- 所有段落切换和 9 个金句时刻都落在小节强拍上，误差不超过 14.3 ms（半帧是 16.7 ms）。
+- 所有段落切换和金句时刻都落在拍点上（整小节的落在强拍上）。最大误差：完整版 14.3 ms，快剪版 15.3 ms，都小于半帧（16.7 ms）。
 - 星盘光晕、图腾缩放、星点亮度由 `useAudioData` + `visualizeAudio` 实时提取的低频 / 中频能量驱动。
+
+快剪版：
+
+![快剪版联系表](docs/short_contact_sheet.jpg)
+
+完整版：
 
 ![联系表](docs/contact_sheet.jpg)
 
@@ -49,7 +62,28 @@
 
 ## 2. 声画对位
 
-`npm run timeline` 会从配置直接打印这张表，并检查卡点误差。
+`npm run timeline` 会从配置直接打印下面两张表，并检查卡点误差。
+
+### 快剪版（音乐第 8–33 小节，视频时间从 0 算）
+
+| 段落 | 构图 | 起点 | 金句 | 终点 | 音乐位置 |
+|---|---|---|---|---|---|
+| 序幕 | — | 0.00 s | — | 4.10 s | 第一次铺垫开始（整体抬升 7 dB）。第 8 小节光点、光线、引导句，第 9 小节星盘描边 + 9 枚节点按十六分音符点亮，第 9.5 小节出总标题 |
+| 01 失衡 | left-editorial | 4.10 s | 6.13 s | 8.17 s | |
+| 02 取舍 | right-editorial | 8.17 s | 10.20 s | 12.23 s | |
+| 03 当下 | center-split | 12.23 s | 14.27 s | 18.33 s | 第一次 drop（16.30 s）落在金句第 2 小节：「你就会很累」高亮、「当 · 下」填色、图腾高光都在这一拍 |
+| 04 边界 | vertical-accent | 18.33 s | 20.37 s | 22.40 s | |
+| 05 自嘲 | left-editorial | 22.40 s | 24.43 s | 26.47 s | |
+| 06 立场 | right-editorial | 26.47 s | 28.50 s | 30.53 s | |
+| 07 炙热 | center-split | 30.53 s | 32.57 s | 34.60 s | 铺垫在低音空出的那一小节，金句落在低音重新进入的那一拍 |
+| 08 无畏 | vertical-accent | 34.60 s | 36.63 s | 38.67 s | |
+| 09 共鸣 | left-editorial | 38.67 s | 40.70 s | 44.77 s | |
+| 互动留白 | — | 44.77 s | — | 46.80 s | 全曲最响的一小节，9 枚圆点按十六分音符依次点亮 |
+| 终幕 | — | 46.80 s | — | 50.90 s | 低音撤出时出标题，breakdown（全曲最安静）开始时 2 s 淡出 |
+
+快剪版里所有固定帧数的文字动画都乘以 `pace = 0.55`（`cuts.ts`），每条铺垫句和金句在 1 小节内完全浮现。
+
+### 完整版
 
 | 段落 | 构图 | 起点（强拍） | 金句重拍 | 终点 | 音乐位置 |
 |---|---|---|---|---|---|
@@ -92,8 +126,9 @@ src/
   config/
     format.ts        画幅（FORMAT 一键切换横 / 竖屏）、字号与排版常量
     palette.ts       5 套情绪色 + 暖香槟金
-    content.ts       全部文案、配色、构图、图腾、小节分配 ← 批量替换只改这里
-    timeline.ts      小节 → 秒 / 帧，段落表，节拍脉冲，配置自检
+    content.ts       全部文案、配色、构图、图腾 ← 批量替换文案只改这里
+    cuts.ts          完整版 / 快剪版的乐段和小节分配 ← 调时长、卡点改这里
+    timeline.ts      小节 → 帧，每个版本的段落表，节拍脉冲，配置自检
   data/music.json    BPM、强拍、段落、淡出（tools/analysis/export_timing.py 生成）
   lib/               audio（音频响应）、fonts、layout（4 种构图几何）、rig（星盘插值）、anim、geometry
   components/
@@ -103,14 +138,14 @@ src/
     text/               逐字扫光、序号、眉题、标签、英文副标
   scenes/            Prelude / QuoteScene / Interaction / Finale
   Film.tsx           整片装配 + <Audio> 淡出
-  Root.tsx           ClarityFilm（按 FORMAT）+ ClarityFilmPortrait（1080×1920）
+  Root.tsx           ClarityShort / ClarityFilm（按 FORMAT）+ 各自的竖屏合成
 public/
   music.mp3          背景音乐
   fonts/             本地字体（思源宋体 GB2312 子集、Cormorant Garamond）
 tools/
   analysis/          analyze.py → bars.py → export_timing.py → calibrate_reactive.py → plot_edit.py
   timeline.mjs       打印时间线并检查卡点（npm run timeline）
-  stills.mjs         按小节号批量渲染静帧（npm run stills -- 10 18.5 f:900）
+  stills.mjs         按小节号批量渲染静帧（npm run stills -- --short 10 18.5 f:900）
   qc.py              成片自动检查
   make_fonts.py      生成 public/fonts 里的子集字体（补生僻字时用）
   patch_compositor.py  glibc 2.34 机器用，见下文
@@ -135,16 +170,18 @@ tools/
 ```bash
 cd clarity-film
 npm install
-npm run render          # → out/clarity-film.mp4（1920×1080）
+npm run render               # 快剪版 → out/clarity-short.mp4（1920×1080，50.9 s）
+npm run render:full          # 完整版 → out/clarity-film.mp4（1920×1080，132.3 s）
 ```
 
 其他命令：
 
 ```bash
-npm run studio          # 浏览器里预览、拖时间轴
-npm run render:portrait # → out/clarity-film-portrait.mp4（1080×1920）
-npm run timeline        # 打印时间线并检查卡点
-npm run stills -- 10 18.5 f:900   # 按小节号 / 帧号导出静帧到 out/stills/
+npm run studio               # 浏览器里预览、拖时间轴（4 个合成都在左侧列表里）
+npm run render:portrait      # 快剪版竖屏 → out/clarity-short-portrait.mp4
+npm run render:full:portrait # 完整版竖屏 → out/clarity-film-portrait.mp4
+npm run timeline             # 打印两个版本的时间线并检查卡点
+npm run stills -- --short 10 18.5 f:900   # 按小节号 / 帧号导出静帧（不加 --short 是完整版）
 npm run typecheck
 ```
 
@@ -156,7 +193,7 @@ npm run typecheck
 
 ### 渲染速度
 
-`remotion.config.ts` 里的并发数是 `min(6, CPU 核数)`。8 核 Linux 机器上整片大约 4 分钟。机器内存小的话，在命令后面加 `--concurrency=2`。
+`remotion.config.ts` 里的并发数是 `min(6, CPU 核数)`。8 核 Linux 机器上快剪版约 1 分 45 秒，完整版约 4 分钟。机器内存小的话，在命令后面加 `--concurrency=2`。
 
 ### 字体
 
@@ -171,7 +208,7 @@ python tools/analysis/bars.py
 python tools/analysis/export_timing.py      # 写 src/data/music.json
 python tools/analysis/calibrate_reactive.py # 核对 lib/audio.tsx 里的 dB 区间
 python tools/analysis/plot_edit.py
-python tools/qc.py                           # 渲染之后
+python tools/qc.py --cut short               # 渲染之后（完整版不加 --cut）
 ```
 
 **glibc 2.34 的机器**：Remotion 的 compositor 需要 glibc 2.35。先运行 `python3 tools/patch_compositor.py`，它会把 compositor 复制到 `bin/compositor/` 并改掉唯一的 `hypot@GLIBC_2.35` 依赖，`remotion.config.ts` 检测到这份副本才会使用它。
@@ -181,27 +218,47 @@ python tools/qc.py                           # 渲染之后
 ## 6. 常见修改
 
 - **替换文案**：改 `src/config/content.ts` 的 `QUOTES`。每条有 `setup`（铺垫）、`punch`（金句，`\n` 换行）、`highlight`（高亮词，出现在铺垫句或金句里都可以）、`keyword`、`english`、`tags`、`mood`、`layout`、`emblem`。字号会按最长一行自动缩小。生僻字见第 5 节「字体」。
-- **调整时长 / 卡点**：改每条的 `bars: { start, punch, end }`（小节号），相邻两条首尾要相接。`npm run timeline` 会报出不连续、金句不在段内或者相邻构图重复的问题。
-- **切竖屏**：`src/config/format.ts` 里 `FORMAT = "portrait"`，或者直接渲染 `ClarityFilmPortrait`。竖屏样张见 `docs/portrait_sheet.jpg`。
-- **换音乐**：替换 `public/music.mp3`，跑一遍第 5 节的分析脚本，再按新的段落表重新分配 `bars`。
+- **调整时长 / 卡点**：改 `src/config/cuts.ts`。每个版本有 `startBar`（音乐从第几小节开始）、`opening`、`quotes`（每条 `{ start, punch, accent?, end }`，小节号，可以用 .25 / .5 / .75 表示拍）、`interaction`、`finale`，相邻两段首尾要相接。`pace` 控制文字动画快慢。`npm run timeline` 会报出不连续、金句不在段内或者相邻构图重复的问题。
+- **再做一个版本**（比如 30 秒）：在 `cuts.ts` 里照着 `SHORT` 加一个，在 `timeline.ts` 的 `TIMELINES` 和 `Root.tsx` 里各注册一下。
+- **切竖屏**：`src/config/format.ts` 里 `FORMAT = "portrait"`，或者直接渲染 `ClarityShortPortrait` / `ClarityFilmPortrait`。竖屏样张见 `docs/portrait_sheet.jpg`。
+- **换音乐**：替换 `public/music.mp3`，跑一遍第 5 节的分析脚本，再按新的段落表重新分配 `cuts.ts`。
 
 ---
 
-## 7. 质量检查（`python tools/qc.py`，全部通过）
+## 7. 质量检查（`python tools/qc.py`，两个版本都全部通过）
+
+快剪版（`python tools/qc.py --cut short`）：
+
+```
+PASS resolution — 1920x1080
+PASS frame rate — 30/1
+PASS video frames — 1527 (expected 1527)
+PASS length — video 50.901 s, timeline 50.900 s
+PASS audio stream — 48000 Hz, 2 ch
+PASS audio matches source before the fade — correlation 0.9951 at offset 0.0 ms (source from 16.333 s)
+PASS audio level unchanged before the fade — rendered/source RMS 0.997
+PASS music fades out over the last 2.0 s — -11.3 dB before fade, -25.0 dB mid-fade, -51.5 dB in the last 0.19 s
+PASS starts from black — frame 0 mean RGB 0.00
+PASS ends on black — last frame mean RGB 0.00
+PASS no black frames between intro and fade — 0 near-black frames in the body
+PASS no sudden brightness jumps — max frame-to-frame luma change 3.7 (0-255)
+```
+
+完整版（`python tools/qc.py`）：
 
 ```
 PASS resolution — 1920x1080
 PASS frame rate — 30/1
 PASS video frames — 3969 (expected 3969)
-PASS length vs music end — video 132.309 s, music stops at 132.214 s
+PASS length — video 132.309 s, timeline 132.300 s
 PASS audio stream — 48000 Hz, 2 ch
-PASS audio matches source before the fade — correlation 0.9999 at offset 0.0 ms
+PASS audio matches source before the fade — correlation 0.9999 at offset 0.0 ms (source from 0.000 s)
 PASS audio level unchanged before the fade — rendered/source RMS 0.997
-PASS music fades out over the last 2.3 s — -10.8 dB before fade, -18.5 dB mid-fade, -59.5 dB in the last 0.24 s
+PASS music fades out over the last 2.3 s — -10.9 dB before fade, -18.4 dB mid-fade, -60.1 dB in the last 0.23 s
 PASS starts from black — frame 0 mean RGB 0.00
 PASS ends on black — last frame mean RGB 0.00
 PASS no black frames between intro and fade — 0 near-black frames in the body
 PASS no sudden brightness jumps — max frame-to-frame luma change 4.1 (0-255)
 ```
 
-`npm run timeline`：卡点最大偏差 14.3 ms，小于半帧。
+`npm run timeline`：卡点最大偏差完整版 14.3 ms、快剪版 15.3 ms，都小于半帧。

@@ -1,11 +1,12 @@
 /**
- * 星盘序幕（前奏 bar 0–8，0–16.4 s）：
- *   bar 0 +2 拍  中心亮起暖金微光点
- *   bar 1        向左右拉出细长水平光线
- *   bar 2        上方逐字扫光浮现开场引导句
- *   bar 4        光线收束，星盘轨道描边生长（Rig）
- *   bar 5–7      9 枚节点按拍依次点亮（Rig），bar 6 星网连线
- *   bar 7        总标题浮现；bar 8 第一个重拍切入正片
+ * 星盘序幕。时间点在 cuts.ts 的 opening 里，以完整版（前奏 bar 0–8，0–16.4 s）为例：
+ *   bar 0 +2 拍  中心亮起暖金微光点（ignite）
+ *   bar 1        向左右拉出细长水平光线（line）
+ *   bar 2        上方逐字扫光浮现开场引导句（text）
+ *   bar 4        光线收束，星盘轨道描边生长（orbit，在 Rig 里）
+ *   bar 5–7      9 枚节点按拍依次点亮（nodes，Rig），bar 6 星网连线（net）
+ *   bar 7        总标题浮现（title）；bar 8 第一个重拍切入正片（end）
+ * 快剪版把这些压进 2 小节（bar 8–10）。
  * 这里的帧号都是绝对帧（序幕从 0 开始，与 Sequence 本地帧相同）。
  */
 import React from "react";
@@ -13,30 +14,29 @@ import { useCurrentFrame, useVideoConfig } from "remotion";
 import { OPENING } from "../config/content";
 import { TYPE, useStage } from "../config/format";
 import { GOLD, INK } from "../config/palette";
-import { BAR_SEC, FPS, barFrame, beatFrame } from "../config/timeline";
+import { useTimeline } from "../config/timeline";
 import { EASE_IN_OUT, ramp, rgba, springAt } from "../lib/anim";
 import { useEnergy } from "../lib/audio";
 import { FONT_CN, FONT_EN } from "../lib/fonts";
 import { CharReveal, fitSize } from "../components/text/CharReveal";
 import { EnglishLine } from "../components/text/Marks";
 
-const BAR = BAR_SEC * FPS;
-
 export const Prelude: React.FC = () => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
   const { W, H, u } = useStage();
   const { bass } = useEnergy();
-  const b = OPENING.bars;
+  const { cut, barFrame, barFrames, p } = useTimeline();
+  const b = cut.opening;
 
-  const ignite = springAt(frame, beatFrame(b.start, 2), fps, 10, 1, 80);
-  const pointFade = 1 - ramp(frame, barFrame(b.title) - 6, 14);
-  const lineOpen = ramp(frame, barFrame(b.line), BAR * 1.3);
-  const lineClose = ramp(frame, barFrame(b.orbit) - 4, 22, EASE_IN_OUT);
+  const ignite = springAt(frame, barFrame(b.ignite), fps, 10, 1, 80);
+  const pointFade = 1 - ramp(frame, barFrame(b.title) - p(6), p(14));
+  const lineOpen = ramp(frame, barFrame(b.line), p(barFrames * 1.3));
+  const lineClose = ramp(frame, barFrame(b.orbit) - p(4), p(22), EASE_IN_OUT);
   const lineW = W * 0.62 * lineOpen * (1 - lineClose);
-  const textOut = ramp(frame, barFrame(b.orbit) - 6, 16, EASE_IN_OUT);
-  const titleIn = ramp(frame, barFrame(b.title), 26);
-  const titleOut = ramp(frame, barFrame(b.end) - 10, 10, EASE_IN_OUT);
+  const textOut = ramp(frame, barFrame(b.textOut) - p(6), p(16), EASE_IN_OUT);
+  const titleIn = ramp(frame, barFrame(b.title), p(26));
+  const titleOut = ramp(frame, barFrame(b.end) - p(10), p(10), EASE_IN_OUT);
   const cy = H / 2;
   const lineSize = fitSize(OPENING.line, W * 0.86, TYPE.openingLine * u, 0.16);
 
@@ -104,8 +104,8 @@ export const Prelude: React.FC = () => {
         <CharReveal
           text={OPENING.line}
           start={barFrame(b.text)}
-          stagger={3}
-          dur={18}
+          stagger={p(3)}
+          dur={p(18)}
           blur={3}
           fontSize={lineSize}
           fontFamily={FONT_CN}
@@ -149,7 +149,7 @@ export const Prelude: React.FC = () => {
         </div>
         <div style={{ height: 10 * u }} />
         <div style={{ fontFamily: FONT_EN }}>
-          <EnglishLine text={OPENING.english} start={barFrame(b.title) + 10} u={u} align="center" />
+          <EnglishLine text={OPENING.english} start={barFrame(b.title) + p(10)} dur={p(26)} u={u} align="center" />
         </div>
       </div>
     </div>

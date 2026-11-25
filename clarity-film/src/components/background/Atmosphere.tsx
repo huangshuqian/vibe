@@ -3,7 +3,7 @@ import React from "react";
 import { useCurrentFrame } from "remotion";
 import { useStage } from "../../config/format";
 import { GOLD } from "../../config/palette";
-import { SEGMENTS, transitionOf } from "../../config/timeline";
+import { useTimeline } from "../../config/timeline";
 import { clamp01, lerp, mixHex, rgba } from "../../lib/anim";
 import { useEnergy } from "../../lib/audio";
 import { f2 } from "../../lib/geometry";
@@ -12,10 +12,11 @@ import { blendColorBySegment, rigStateAt, segmentMood } from "../../lib/rig";
 /** 极深底色上叠微弱的径向氛围光（跟着星盘位置和当前情绪色走） */
 export const AmbientGlow: React.FC = () => {
   const frame = useCurrentFrame();
+  const tl = useTimeline();
   const stage = useStage();
   const { bass } = useEnergy();
-  const st = rigStateAt(frame, stage);
-  const mood = blendColorBySegment(frame, segmentMood);
+  const st = rigStateAt(tl, frame, stage);
+  const mood = blendColorBySegment(tl, frame, segmentMood);
   const a = 0.1 + 0.07 * bass;
   return (
     <div
@@ -34,8 +35,9 @@ export const AmbientGlow: React.FC = () => {
 /** 极淡的星图等高线脉络：几条缓慢形变的闭合曲线 + 两条倾斜的天球大圆 */
 export const ContourLines: React.FC = () => {
   const frame = useCurrentFrame();
+  const tl = useTimeline();
   const { W, H, u } = useStage();
-  const mood = blendColorBySegment(frame, segmentMood);
+  const mood = blendColorBySegment(tl, frame, segmentMood);
   const cx = W * 0.58;
   const cy = H * 0.56;
   const base = Math.min(W, H);
@@ -78,13 +80,14 @@ export const ContourLines: React.FC = () => {
 /** 段落切换时一道轻盈的主题色光晕从左到右横扫 */
 export const LightSweep: React.FC = () => {
   const frame = useCurrentFrame();
+  const tl = useTimeline();
   const { W, H } = useStage();
   return (
     <>
-      {SEGMENTS.slice(1).map((seg, i) => {
-        const { lead } = transitionOf(seg);
-        const t0 = seg.from - lead - 4;
-        const t1 = seg.from + 18;
+      {tl.segments.slice(1).map((seg, i) => {
+        const { lead } = tl.transitionOf(seg);
+        const t0 = seg.from - lead - tl.p(4);
+        const t1 = seg.from + tl.p(18);
         if (frame < t0 || frame > t1) return null;
         const p = clamp01((frame - t0) / (t1 - t0));
         const x = lerp(-0.45, 1.15, p) * W;
