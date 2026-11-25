@@ -1,0 +1,30 @@
+{
+  "name": "clarity-film",
+  "version": "1.0.0",
+  "private": true,
+  "description": "清醒录：纯音乐驱动的暗黑星盘语录混剪（Remotion），完整版 132 s + 快剪版 51 s",
+  "scripts": {
+    "studio": "remotion studio",
+    "render": "remotion render src/index.ts ClarityShort out/clarity-short.mp4",
+    "render:portrait": "remotion render src/index.ts ClarityShortPortrait out/clarity-short-portrait.mp4",
+    "render:full": "remotion render src/index.ts ClarityFilm out/clarity-film.mp4",
+    "render:full:portrait": "remotion render src/index.ts ClarityFilmPortrait out/clarity-film-portrait.mp4",
+    "still": "remotion still src/index.ts ClarityShort",
+    "timeline": "node tools/timeline.mjs",
+    "stills": "node tools/stills.mjs",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@remotion/cli": "4.0.547",
+    "@remotion/fonts": "4.0.547",
+    "@remotion/media": "4.0.547",
+    "@remotion/media-utils": "4.0.547",
+    "react": "19.2.0",
+    "react-dom": "19.2.0",
+    "remotion": "4.0.547"
+  },
+  "devDependencies": {
+    "@types/react": "19.2.2",
+    "typescript": "5.9.3"
+  }
+}
